@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  />
+  <title>Heart Animation Mobile</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #12050a 0%, #050507 70%, #000 100%);
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .hint {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.7);
+      font-family: sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.3px;
+      background: rgba(0,0,0,0.28);
+      padding: 8px 12px;
+      border-radius: 999px;
+      backdrop-filter: blur(6px);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div class="hint">Touch screen ✨</div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    let w = 0;
+    let h = 0;
+    let cx = 0;
+    let cy = 0;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    function resize() {
+      w = window.innerWidth;
+      h = window.innerHeight;
+      cx = w / 2;
+      cy = h / 2;
+
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    resize();
+    window.addEventListener("resize", resize);
+
+    function heartPoint(t, scale = 1) {
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y =
+        13 * Math.cos(t) -
+        5 * Math.cos(2 * t) -
+        2 * Math.cos(3 * t) -
+        Math.cos(4 * t);
+
+      return {
+        x: x * scale,
+        y: -y * scale
+      };
+    }
+
+    const particles = [];
+    const sparks = [];
+    let time = 0;
+
+    class Particle {
+      constructor(angle) {
+        const p = heartPoint(angle, 11 + Math.random() * 2.2);
+        this.baseAngle = angle;
+        this.x = cx + p.x;
+        this.y = cy + p.y;
+        this.size = Math.random() * 2.2 + 0.8;
+        this.alpha = Math.random() * 0.6 + 0.35;
+        this.offset = Math.random() * Math.PI * 2;
+      }
+
+      draw(t) {
+        const pulse = 1 + Math.sin(t * 0.003 + this.offset) * 0.08;
+        const p = heartPoint(this.baseAngle, (11 + Math.sin(t * 0.004 + this.offset) * 0.6) * pulse);
+        const x = cx + p.x;
+        const y = cy + p.y;
+
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255, 40, 90, ${this.alpha})`;
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = "rgba(255, 20, 80, 0.9)";
+        ctx.arc(x, y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    class Spark {
+      constructor(x, y) {
+        const a = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 2.4 + 0.5;
+        this.x = x;
+        this.y = y;
+        this.vx = Math.cos(a) * speed;
+        this.vy = Math.sin(a) * speed;
+        this.life = 1;
+        this.decay = Math.random() * 0.02 + 0.01;
+        this.size = Math.random() * 2 + 1;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vx *= 0.99;
+        this.vy *= 0.99;
+        this.life -= this.decay;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255, 60, 110, ${this.life})`;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "rgba(255, 40, 100, 0.9)";
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    for (let i = 0; i < 900; i++) {
+      particles.push(new Particle((i / 900) * Math.PI * 2));
+    }
+
+    function burst(x, y, count = 20) {
+      for (let i = 0; i < count; i++) {
+        sparks.push(new Spark(x, y));
+      }
+    }
+
+    function autoBurst() {
+      const a = Math.random() * Math.PI * 2;
+      const p = heartPoint(a, 11.5);
+      burst(cx + p.x, cy + p.y, 14);
+    }
+
+    setInterval(autoBurst, 180);
+
+    function drawGlowHeart(t) {
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      const pulse = 1 + Math.sin(t * 0.004) * 0.04;
+      ctx.scale(pulse, pulse);
+
+      ctx.beginPath();
+      for (let i = 0; i <= 360; i++) {
+        const a = (i / 180) * Math.PI;
+        const p = heartPoint(a, 11.5);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+
+      ctx.closePath();
+      ctx.shadowBlur = 45;
+      ctx.shadowColor = "rgba(255, 0, 80, 0.55)";
+      ctx.strokeStyle = "rgba(255, 30, 100, 0.18)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function animate(ts) {
+      time = ts;
+
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.fillStyle = "rgba(10, 0, 10, 0.18)";
+      ctx.fillRect(0, 0, w, h);
+
+      drawGlowHeart(ts);
+
+      for (const p of particles) {
+        p.draw(ts);
+      }
+
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.update();
+        s.draw();
+        if (s.life <= 0) sparks.splice(i, 1);
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+
+    function handleTouch(x, y) {
+      burst(x, y, 28);
+    }
+
+    window.addEventListener("touchstart", (e) => {
+      for (const t of e.touches) handleTouch(t.clientX, t.clientY);
+    }, { passive: true });
+
+    window.addEventListener("touchmove", (e) => {
+      for (const t of e.touches) {
+        if (Math.random() > 0.4) handleTouch(t.clientX, t.clientY);
+      }
+    }, { passive: true });
+
+    window.addEventListener("click", (e) => {
+      handleTouch(e.clientX, e.clientY);
+    });
+  </script>
+</body>
+</html>
